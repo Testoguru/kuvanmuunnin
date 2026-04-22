@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CONVERSIONS } from "../conversion-data";
+import { CONVERSIONS } from "../../conversion-data";
 import { ImageConverter } from "../../components/ImageConverter";
+
+export const dynamicParams = false;
 
 type PageProps = {
   params: Promise<{ slug: string }>;

@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { CONVERSIONS } from "./conversion-data";
+import { CONVERSIONS } from "../conversion-data";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com";
 

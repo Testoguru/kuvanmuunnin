@@ -24,8 +24,10 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [originalName, setOriginalName] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [originalPreviewUrl, setOriginalPreviewUrl] = useState<string | null>(null);
+  const [convertedPreviewUrl, setConvertedPreviewUrl] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   const acceptedTypes = useMemo(() => `${from},image/*`, [from]);
@@ -34,43 +36,90 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (originalPreviewUrl) URL.revokeObjectURL(originalPreviewUrl);
+      if (convertedPreviewUrl) URL.revokeObjectURL(convertedPreviewUrl);
       if (downloadUrl) URL.revokeObjectURL(downloadUrl);
     };
-  }, [previewUrl, downloadUrl]);
+  }, [convertedPreviewUrl, downloadUrl, originalPreviewUrl]);
 
   const resetPreviousConversion = useCallback(() => {
     setError(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
+    setInfoMessage(null);
+    if (convertedPreviewUrl) {
+      URL.revokeObjectURL(convertedPreviewUrl);
+      setConvertedPreviewUrl(null);
     }
     if (downloadUrl) {
       URL.revokeObjectURL(downloadUrl);
       setDownloadUrl(null);
     }
-  }, [downloadUrl, previewUrl]);
+  }, [convertedPreviewUrl, downloadUrl]);
+
+  const isHeicLike = useCallback((file: File) => {
+    const mime = file.type.toLowerCase();
+    const fileName = file.name.toLowerCase();
+    return (
+      mime === "image/heic" ||
+      mime === "image/heif" ||
+      fileName.endsWith(".heic") ||
+      fileName.endsWith(".heif")
+    );
+  }, []);
 
   const convertFile = useCallback(
     async (file: File) => {
       resetPreviousConversion();
       setOriginalName(file.name);
+      setInfoMessage(null);
       setIsConverting(true);
 
       try {
-        const sourceUrl = URL.createObjectURL(file);
-        const image = new Image();
-        image.decoding = "async";
+        if (isHeicLike(file)) {
+          throw new Error(
+            "HEIC/HEIF-kuvia ei voida viela muuntaa luotettavasti pelkalla selaimen Canvasilla. Lisaamme tuen erillisella kirjastolla seuraavassa vaiheessa.",
+          );
+        }
 
-        await new Promise<void>((resolve, reject) => {
-          image.onload = () => resolve();
-          image.onerror = () => reject(new Error("Kuvan lukeminen epaonnistui."));
-          image.src = sourceUrl;
-        });
+        const sourceUrl = URL.createObjectURL(file);
+        if (originalPreviewUrl) {
+          URL.revokeObjectURL(originalPreviewUrl);
+        }
+        setOriginalPreviewUrl(sourceUrl);
+
+        let bitmap: ImageBitmap | null = null;
+        try {
+          bitmap = await createImageBitmap(file);
+        } catch {
+          bitmap = null;
+        }
+
+        let width = 0;
+        let height = 0;
+        let htmlImage: HTMLImageElement | null = null;
+
+        if (bitmap) {
+          width = bitmap.width;
+          height = bitmap.height;
+        } else {
+          htmlImage = new Image();
+          htmlImage.decoding = "async";
+          await new Promise<void>((resolve, reject) => {
+            if (!htmlImage) {
+              reject(new Error("Kuvan lukeminen epaonnistui."));
+              return;
+            }
+            htmlImage.onload = () => resolve();
+            htmlImage.onerror = () =>
+              reject(new Error("Kuvan lukeminen epaonnistui. Tarkista tiedostomuoto."));
+            htmlImage.src = sourceUrl;
+          });
+          width = htmlImage.naturalWidth;
+          height = htmlImage.naturalHeight;
+        }
 
         const canvas = document.createElement("canvas");
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
+        canvas.width = width;
+        canvas.height = height;
 
         const ctx = canvas.getContext("2d");
         if (!ctx) {
@@ -83,8 +132,14 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        ctx.drawImage(image, 0, 0);
-        URL.revokeObjectURL(sourceUrl);
+        if (bitmap) {
+          ctx.drawImage(bitmap, 0, 0);
+          bitmap.close();
+        } else if (htmlImage) {
+          ctx.drawImage(htmlImage, 0, 0);
+        } else {
+          throw new Error("Kuvan piirtaminen epaonnistui.");
+        }
 
         const convertedBlob = await new Promise<Blob>((resolve, reject) => {
           canvas.toBlob(
@@ -101,8 +156,9 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
         });
 
         const nextPreviewUrl = URL.createObjectURL(convertedBlob);
-        setPreviewUrl(nextPreviewUrl);
+        setConvertedPreviewUrl(nextPreviewUrl);
         setDownloadUrl(nextPreviewUrl);
+        setInfoMessage("Valmista! Voit nyt ladata muunnetun kuvan.");
       } catch (conversionError) {
         const message =
           conversionError instanceof Error
@@ -113,7 +169,7 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
         setIsConverting(false);
       }
     },
-    [resetPreviousConversion, to],
+    [isHeicLike, originalPreviewUrl, resetPreviousConversion, to],
   );
 
   const handleFile = useCallback(
@@ -139,19 +195,24 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
   }, [originalName, to]);
 
   return (
-    <section className="w-full rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 sm:p-6">
-      <div className="mb-4">
-        <h2 className="text-xl font-semibold">Muunna kuva muodosta {fromLabel} muotoon {toLabel}</h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Vedä kuva alueelle tai valitse tiedosto. Muunnos tapahtuu kokonaan selaimessasi.
+    <section className="w-full rounded-3xl border border-zinc-200 bg-white p-5 shadow-lg shadow-zinc-200/60 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/20 sm:p-7">
+      <div className="mb-5">
+        <p className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+          Turvallinen selaimessa tehtava muunnos
+        </p>
+        <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+          Muunna kuva muodosta {fromLabel} muotoon {toLabel}
+        </h2>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          Raahaa kuva tahan tai valitse tiedosto. Mitaan ei laheteta palvelimelle.
         </p>
       </div>
 
       <label
-        className={`flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${
+        className={`flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-8 text-center transition ${
           isDragging
-            ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-            : "border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500"
+            ? "border-blue-500 bg-blue-50/70 dark:bg-blue-950/20"
+            : "border-zinc-300 hover:border-blue-400 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:border-blue-600 dark:hover:bg-zinc-900"
         }`}
         onDragOver={(event) => {
           event.preventDefault();
@@ -170,11 +231,13 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
             event.currentTarget.value = "";
           }}
         />
-        <p className="text-base font-medium">Pudota kuva tahan</p>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">tai klikkaa ja valitse tiedosto</p>
+        <p className="text-base font-semibold">Raahaa kuva tahan</p>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          tai klikkaa avataksesi tiedostovalitsimen
+        </p>
         <button
           type="button"
-          className="mt-4 rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          className="mt-5 rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           onClick={(event) => {
             event.preventDefault();
             inputRef.current?.click();
@@ -184,21 +247,59 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
         </button>
       </label>
 
-      {isConverting && <p className="mt-4 text-sm">Muunnetaan kuvaa...</p>}
-      {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+      {isConverting && <p className="mt-4 text-sm font-medium text-blue-700 dark:text-blue-300">Muunnetaan...</p>}
+      {infoMessage && <p className="mt-4 text-sm text-emerald-700 dark:text-emerald-300">{infoMessage}</p>}
+      {error && (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-300">
+          {error}
+        </div>
+      )}
 
-      {previewUrl && (
-        <div className="mt-6 space-y-4">
-          <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
-            <img src={previewUrl} alt="Muunnetun kuvan esikatselu" className="h-auto max-h-[420px] w-full object-contain bg-zinc-50 dark:bg-zinc-900" />
+      {(originalPreviewUrl || convertedPreviewUrl) && (
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+            <p className="border-b border-zinc-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+              Alkuperainen kuva
+            </p>
+            {originalPreviewUrl ? (
+              <img
+                src={originalPreviewUrl}
+                alt="Alkuperaisen kuvan esikatselu"
+                className="h-auto max-h-[420px] w-full object-contain"
+              />
+            ) : (
+              <div className="flex h-48 items-center justify-center text-sm text-zinc-500">Ei esikatselua</div>
+            )}
           </div>
-          <a
-            href={downloadUrl ?? undefined}
-            download={downloadName}
-            className="inline-flex items-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"
-          >
-            Lataa kuva
-          </a>
+
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+            <p className="border-b border-zinc-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+              Muunnettu kuva ({toLabel})
+            </p>
+            {convertedPreviewUrl ? (
+              <img
+                src={convertedPreviewUrl}
+                alt="Muunnetun kuvan esikatselu"
+                className="h-auto max-h-[420px] w-full object-contain"
+              />
+            ) : (
+              <div className="flex h-48 items-center justify-center text-sm text-zinc-500">
+                Muunnos ilmestyy tahan
+              </div>
+            )}
+          </div>
+
+          {downloadUrl && (
+            <div className="md:col-span-2">
+              <a
+                href={downloadUrl}
+                download={downloadName}
+                className="inline-flex items-center rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-500"
+              >
+                Lataa muunnettu kuva
+              </a>
+            </div>
+          )}
         </div>
       )}
     </section>

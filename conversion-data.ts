@@ -11,7 +11,7 @@ export const CONVERSIONS: Conversion[] = [
     slug: "png-to-jpg",
     title: "Muuta PNG JPG-muotoon ilmaiseksi",
     description:
-      "Muunna PNG-kuvat JPG-muotoon nopeasti selaimessa ilman asennuksia. Kevyt ja helppokäyttoinen työkalu arjen kuvamuunnoksiin.",
+      "Muunna PNG JPG-muotoon sekunneissa suoraan selaimessa. Nopea ja ilmainen kuvanmuunnin tekee tiedostoista kevyempia jakamiseen, lahettamiseen ja verkkokayttoon.",
     from: "image/png",
     to: "image/jpeg",
   },
@@ -19,7 +19,7 @@ export const CONVERSIONS: Conversion[] = [
     slug: "jpg-to-png",
     title: "Muuta JPG PNG-muotoon ilmaiseksi",
     description:
-      "Vaihda JPG-kuvat PNG-muotoon kätevästi verkossa. Säilytä kuvanlaatu ja hyödynnä läpinäkyvyyttä tukevat PNG-tiedostot.",
+      "Muuta JPG PNG-muotoon helposti ilman asennuksia. Saat tarkat ja laadukkaat kuvat esimerkiksi grafiikkaan, muokkaukseen ja tilanteisiin, joissa tarvitset parempaa laatua.",
     from: "image/jpeg",
     to: "image/png",
   },
@@ -27,7 +27,7 @@ export const CONVERSIONS: Conversion[] = [
     slug: "webp-to-jpg",
     title: "Muuta WebP JPG-muotoon ilmaiseksi",
     description:
-      "Muunna WebP-kuvat JPG-muotoon sekunneissa. Sopii erityisesti kuville, jotka haluat avata laajasti eri laitteilla ja sovelluksilla.",
+      "Muunna WebP JPG-muotoon, jotta kuvat toimivat varmasti kaikilla laitteilla ja sovelluksilla. Erinomainen valinta, kun haluat maksimaalisen yhteensopivuuden nopeasti.",
     from: "image/webp",
     to: "image/jpeg",
   },
@@ -35,7 +35,7 @@ export const CONVERSIONS: Conversion[] = [
     slug: "heic-to-jpg",
     title: "Muuta HEIC JPG-muotoon ilmaiseksi",
     description:
-      "Muunna iPhonen HEIC-kuvat JPG-muotoon helposti. Saat yhteensopivammat kuvat jakamiseen, tulostamiseen ja arkistointiin.",
+      "Muunna HEIC JPG-muotoon vaivattomasti iPhonen kuvista. Tee kuvista heti yhteensopivia Windowsin, Androidin ja yleisimpien palveluiden kanssa ilman laadusta tinkimista.",
     from: "image/heic",
     to: "image/jpeg",
   },
@@ -43,7 +43,7 @@ export const CONVERSIONS: Conversion[] = [
     slug: "png-to-webp",
     title: "Muuta PNG WebP-muotoon ilmaiseksi",
     description:
-      "Muuta PNG-kuvat WebP-muotoon pienempiä tiedostokokoja varten. Erinomainen valinta verkkosivuille ja nopeampiin latausaikoihin.",
+      "Muuta PNG WebP-muotoon ja pienennä kuvatiedostojen kokoa nopeasti. Sopii erityisesti verkkosivuille, kun haluat nopeammat latausajat ja paremman kayttajakokemuksen.",
     from: "image/png",
     to: "image/webp",
   },
