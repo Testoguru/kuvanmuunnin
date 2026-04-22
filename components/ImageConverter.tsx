@@ -1,5 +1,7 @@
 "use client";
 
+import heic2any from "heic2any";
+import { jsPDF } from "jspdf";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type ImageConverterProps = {
@@ -12,6 +14,7 @@ function extensionFromMimeType(mimeType: string) {
   if (mimeType === "image/png") return "png";
   if (mimeType === "image/webp") return "webp";
   if (mimeType === "image/heic") return "heic";
+  if (mimeType === "application/pdf") return "pdf";
   return "img";
 }
 
@@ -23,6 +26,7 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
+  const [isProcessingHeic, setIsProcessingHeic] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [originalName, setOriginalName] = useState<string | null>(null);
@@ -72,23 +76,38 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
       setOriginalName(file.name);
       setInfoMessage(null);
       setIsConverting(true);
+      setIsProcessingHeic(false);
 
+      let workingSourceUrl: string | null = null;
       try {
-        if (isHeicLike(file)) {
-          throw new Error(
-            "HEIC/HEIF-kuvia ei voida viela muuntaa luotettavasti pelkalla selaimen Canvasilla. Lisaamme tuen erillisella kirjastolla seuraavassa vaiheessa.",
-          );
-        }
-
         const sourceUrl = URL.createObjectURL(file);
         if (originalPreviewUrl) {
           URL.revokeObjectURL(originalPreviewUrl);
         }
         setOriginalPreviewUrl(sourceUrl);
 
+        let workingBlob: Blob = file;
+        if (isHeicLike(file)) {
+          setIsProcessingHeic(true);
+          try {
+            const heicResult = await heic2any({
+              blob: file,
+              toType: "image/jpeg",
+            });
+            workingBlob = Array.isArray(heicResult) ? heicResult[0] : heicResult;
+          } catch {
+            throw new Error(
+              "HEIC-kuvan kasittely ei onnistunut. Yrita toista kuvaa tai muuta tiedosto ensin JPEG-muotoon.",
+            );
+          } finally {
+            setIsProcessingHeic(false);
+          }
+        }
+
+        workingSourceUrl = URL.createObjectURL(workingBlob);
         let bitmap: ImageBitmap | null = null;
         try {
-          bitmap = await createImageBitmap(file);
+          bitmap = await createImageBitmap(workingBlob);
         } catch {
           bitmap = null;
         }
@@ -111,7 +130,7 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
             htmlImage.onload = () => resolve();
             htmlImage.onerror = () =>
               reject(new Error("Kuvan lukeminen epaonnistui. Tarkista tiedostomuoto."));
-            htmlImage.src = sourceUrl;
+            htmlImage.src = workingSourceUrl ?? sourceUrl;
           });
           width = htmlImage.naturalWidth;
           height = htmlImage.naturalHeight;
@@ -141,22 +160,58 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
           throw new Error("Kuvan piirtaminen epaonnistui.");
         }
 
-        const convertedBlob = await new Promise<Blob>((resolve, reject) => {
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) {
-                reject(new Error("Muunnos epaonnistui."));
-                return;
-              }
-              resolve(blob);
-            },
-            to,
-            0.92,
-          );
-        });
+        let convertedBlob: Blob;
+        if (to === "application/pdf") {
+          const orientation = canvas.width >= canvas.height ? "landscape" : "portrait";
+          const pdf = new jsPDF({
+            orientation,
+            unit: "mm",
+            format: "a4",
+          });
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          const margin = 10;
+          const maxWidth = pageWidth - margin * 2;
+          const maxHeight = pageHeight - margin * 2;
+          const imageRatio = canvas.width / canvas.height;
+          const maxRatio = maxWidth / maxHeight;
+
+          let renderWidth = maxWidth;
+          let renderHeight = maxHeight;
+
+          if (imageRatio > maxRatio) {
+            renderHeight = maxWidth / imageRatio;
+          } else {
+            renderWidth = maxHeight * imageRatio;
+          }
+
+          const x = (pageWidth - renderWidth) / 2;
+          const y = (pageHeight - renderHeight) / 2;
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+          pdf.addImage(dataUrl, "JPEG", x, y, renderWidth, renderHeight);
+          convertedBlob = pdf.output("blob");
+        } else {
+          convertedBlob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  reject(new Error("Muunnos epaonnistui."));
+                  return;
+                }
+                resolve(blob);
+              },
+              to,
+              0.92,
+            );
+          });
+        }
 
         const nextPreviewUrl = URL.createObjectURL(convertedBlob);
-        setConvertedPreviewUrl(nextPreviewUrl);
+        if (to === "application/pdf") {
+          setConvertedPreviewUrl(null);
+        } else {
+          setConvertedPreviewUrl(nextPreviewUrl);
+        }
         setDownloadUrl(nextPreviewUrl);
         setInfoMessage("Valmista! Voit nyt ladata muunnetun kuvan.");
       } catch (conversionError) {
@@ -166,6 +221,10 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
             : "Muunnos epaonnistui. Yrita toisella kuvalla.";
         setError(message);
       } finally {
+        if (workingSourceUrl) {
+          URL.revokeObjectURL(workingSourceUrl);
+        }
+        setIsProcessingHeic(false);
         setIsConverting(false);
       }
     },
@@ -247,7 +306,14 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
         </button>
       </label>
 
-      {isConverting && <p className="mt-4 text-sm font-medium text-blue-700 dark:text-blue-300">Muunnetaan...</p>}
+      {isProcessingHeic && (
+        <p className="mt-4 text-sm font-medium text-blue-700 dark:text-blue-300">
+          Kasitellaan HEIC-kuvaa...
+        </p>
+      )}
+      {isConverting && !isProcessingHeic && (
+        <p className="mt-4 text-sm font-medium text-blue-700 dark:text-blue-300">Muunnetaan...</p>
+      )}
       {infoMessage && <p className="mt-4 text-sm text-emerald-700 dark:text-emerald-300">{infoMessage}</p>}
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-300">

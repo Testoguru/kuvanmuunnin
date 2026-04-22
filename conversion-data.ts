@@ -47,4 +47,28 @@ export const CONVERSIONS: Conversion[] = [
     from: "image/png",
     to: "image/webp",
   },
+  {
+    slug: "jpeg-to-pdf",
+    title: "Muuta JPEG PDF-muotoon ilmaiseksi",
+    description:
+      "Muunna JPEG-kuvat PDF-muotoon helposti suoraan selaimessa. Luo siistit dokumentit jakamiseen, tulostamiseen ja arkistointiin ilman erillisia ohjelmia.",
+    from: "image/jpeg",
+    to: "application/pdf",
+  },
+  {
+    slug: "png-to-pdf",
+    title: "Muuta PNG PDF-muotoon ilmaiseksi",
+    description:
+      "Muuta PNG-kuvat PDF-muotoon nopeasti ja turvallisesti. Erinomainen valinta, kun haluat yhdesta kuvasta helposti lahetettavan tai tulostettavan tiedoston.",
+    from: "image/png",
+    to: "application/pdf",
+  },
+  {
+    slug: "heic-to-pdf",
+    title: "Muuta HEIC PDF-muotoon ilmaiseksi",
+    description:
+      "Muunna iPhonen HEIC-kuvat PDF-muotoon vaivattomasti. Saat yhteensopivan tiedoston sopimuksiin, lomakkeisiin ja muuhun dokumenttijakoon.",
+    from: "image/heic",
+    to: "application/pdf",
+  },
 ];
