@@ -1,7 +1,12 @@
+import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CONVERSIONS } from "../../conversion-data";
-import { ImageConverter } from "../../components/ImageConverter";
+
+const ImageConverter = dynamic(
+  () => import("../../components/ImageConverter").then((mod) => mod.ImageConverter),
+  { ssr: false }
+);
 
 export const dynamicParams = false;
 
