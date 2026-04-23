@@ -342,7 +342,12 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
             <p className="border-b border-zinc-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
               Muunnettu kuva ({toLabel})
             </p>
-            {convertedPreviewUrl ? (
+            {to === "application/pdf" && downloadUrl ? (
+              <div className="flex h-48 flex-col items-center justify-center gap-3 text-center text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                <span className="text-4xl">📄</span>
+                <p>PDF luotu onnistuneesti!</p>
+              </div>
+            ) : convertedPreviewUrl ? (
               <img
                 src={convertedPreviewUrl}
                 alt="Muunnetun kuvan esikatselu"
