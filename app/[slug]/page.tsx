@@ -1,12 +1,7 @@
-import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CONVERSIONS } from "../../conversion-data";
-
-const ImageConverter = dynamic(
-  () => import("../../components/ImageConverter").then((mod) => mod.ImageConverter),
-  { ssr: false }
-);
+import { ClientImageConverter } from "../../components/ClientImageConverter";
 
 export const dynamicParams = false;
 
@@ -53,7 +48,7 @@ export default async function ConversionPage({ params }: PageProps) {
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
       <h1 className="text-3xl font-semibold tracking-tight">{conversion.title}</h1>
       <p className="text-zinc-600 dark:text-zinc-400">{conversion.description}</p>
-      <ImageConverter from={conversion.from} to={conversion.to} />
+      <ClientImageConverter from={conversion.from} to={conversion.to} />
     </main>
   );
 }
