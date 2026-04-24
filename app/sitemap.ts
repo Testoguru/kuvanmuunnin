@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { CONVERSIONS } from "../conversion-data";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://kuvanmuunnin.fi";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const conversionPages: MetadataRoute.Sitemap = CONVERSIONS.map((conversion) => ({
