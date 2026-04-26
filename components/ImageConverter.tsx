@@ -257,13 +257,13 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
     <section className="w-full rounded-3xl border border-zinc-200 bg-white p-5 shadow-lg shadow-zinc-200/60 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/20 sm:p-7">
       <div className="mb-5">
         <p className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-          Turvallinen selaimessa tehtava muunnos
+          Turvallinen selaimessa tehtävä muunnos
         </p>
         <h2 className="mt-3 text-2xl font-semibold tracking-tight">
           Muunna kuva muodosta {fromLabel} muotoon {toLabel}
         </h2>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Raahaa kuva tahan tai valitse tiedosto. Mitaan ei laheteta palvelimelle.
+          Raahaa kuva tähän tai valitse tiedosto. Mitään ei lähetetä palvelimelle.
         </p>
       </div>
 
@@ -290,7 +290,7 @@ export function ImageConverter({ from, to }: ImageConverterProps) {
             event.currentTarget.value = "";
           }}
         />
-        <p className="text-base font-semibold">Raahaa kuva tahan</p>
+        <p className="text-base font-semibold">Raahaa kuva tähän</p>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           tai klikkaa avataksesi tiedostovalitsimen
         </p>
